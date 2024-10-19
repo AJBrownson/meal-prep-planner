@@ -1,6 +1,6 @@
-// Import the generateMealPlan function from the research module
-import { generateMealPlan } from "./research";
-// Import the Action type from the @copilotkit/shared package
+// Import the researchWithLangGraph function from the research module
+import { researchWithLangGraph } from "./research";
+// Import the Action type from the @cop./researcht/shared package
 import { Action } from "@copilotkit/shared";
 // Import the NextRequest type from the next/server module
 import { NextRequest } from "next/server";
@@ -39,9 +39,9 @@ const researchAction: Action<any> = {
   ],
   // Define the handler function for the action, which is asynchronous
   handler: async ({ topic }) => {
-    console.log("Researching topic: ", topic); // Log the topic being researched
-    // Call the generateMealPlan function to get the article
-    return await generateMealPlan(topic);
+    console.log("Researching topic: ", topic);
+    // Call the researchWithLangGraph function to get the meal plans
+    return await researchWithLangGraph(topic);
   },
 };
 
@@ -49,7 +49,7 @@ const researchAction: Action<any> = {
 export const POST = async (req: NextRequest) => {
   const actions: Action<any>[] = []; // Initialize an empty array to hold actions
 
-  // Check if the GROQ_API_KEY environment variable is set and not equal to "NONE"
+  // Check if the TAVILY_API_KEY environment variable is set and not equal to "NONE"
   if (
     process.env["TAVILY_API_KEY"] &&
     process.env["TAVILY_API_KEY"] !== "NONE"
@@ -61,7 +61,6 @@ export const POST = async (req: NextRequest) => {
     runtime,
     serviceAdapter: groqAdapter,
     endpoint: "/api/copilotkit",
-    // actions,
   });
 
   return handleRequest(req);

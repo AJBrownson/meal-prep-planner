@@ -1,21 +1,26 @@
+/**
+ * This is a port of GPT Newspaper to LangGraph JS, adapted from the original Python code.
+ *
+ * https://github.com/assafelovic/gpt-newspaper
+ */
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatGroq } from "@langchain/groq";
 import { StateGraph, END } from "@langchain/langgraph";
 import { RunnableLambda } from "@langchain/core/runnables";
 import { TavilySearchAPIRetriever } from "@langchain/community/retrievers/tavily_search_api";
 
-
 interface AgentState {
-  dietaryPreference: string;
+  topic: string;
   searchResults?: string;
-  mealPlan?: string;
+  article?: string;
   critique?: string;
 }
 
 function model() {
   return new ChatGroq({
+    temperature: 0,
     modelName: process.env.GROQ_MODEL,
-  })
+  });
 }
 
 async function search(state: {
@@ -24,11 +29,12 @@ async function search(state: {
   const retriever = new TavilySearchAPIRetriever({
     k: 10,
   });
-  let dietaryPreference = state.agentState.dietaryPreference;
-  if (dietaryPreference.length < 5) {
-    dietaryPreference = "dietary preference: " + dietaryPreference;
+  let topic = state.agentState.topic;
+  // must be at least 5 characters long
+  if (topic.length < 5) {
+    topic = "topic: " + topic;
   }
-  const docs = await retriever.getRelevantDocuments(dietaryPreference);
+  const docs = await retriever.getRelevantDocuments(topic);
   return {
     agentState: {
       ...state.agentState,
@@ -40,19 +46,31 @@ async function search(state: {
 async function curate(state: {
   agentState: AgentState;
 }): Promise<{ agentState: AgentState }> {
-  const response = await model().invoke([
-    new SystemMessage(
-      `You are a personal meal planner. Your sole task is to return a list of URLs and articles for the 7 most relevant recipes based on the provided query or dietary preference as a JSON list of strings in this format:
-       { urls: ["url1", "url2", "url3", "url4", "url5", "url6", "url7"] }.`.replace(/\s+/g, " ")
-    ),
-    new HumanMessage(
-      `Today's date is ${new Date().toLocaleDateString("en-GB")}.
-      Dietary Preference or Query: ${state.agentState.dietaryPreference}
-      
-      Here is a meal plan based on your dietary preference:
-      ${state.agentState.searchResults}`.replace(/\s+/g, " ")
-    ),
-  ]);
+  const response = await model().invoke(
+    [
+      new SystemMessage(
+        `You are a personal newspaper editor. 
+         Your sole task is to return a list of URLs of the 5 most relevant articles for the provided topic or query as a JSON list of strings
+         in this format:
+         {
+          urls: ["url1", "url2", "url3", "url4", "url5"]
+         }
+         .`.replace(/\s+/g, " ")
+      ),
+      new HumanMessage(
+        `Today's date is ${new Date().toLocaleDateString("en-GB")}.
+       Topic or Query: ${state.agentState.topic}
+       
+       Here is a list of articles:
+       ${state.agentState.searchResults}`.replace(/\s+/g, " ")
+      ),
+    ],
+    {
+      response_format: {
+        type: "json_object",
+      },
+    }
+  );
   const urls = JSON.parse(response.content as string).urls;
   const searchResults = JSON.parse(state.agentState.searchResults!);
   const newSearchResults = searchResults.filter((result: any) => {
@@ -72,20 +90,29 @@ async function critique(state: {
   let feedbackInstructions = "";
   if (state.agentState.critique) {
     feedbackInstructions =
-      `The meal plan has been revised based on your previous critique: ${state.agentState.critique}
-       The planner may have left feedback for you encoded between <FEEDBACK> tags for you to see.`.replace(/\s+/g, " ");
+      `The writer has revised the article based on your previous critique: ${state.agentState.critique}
+       The writer might have left feedback for you encoded between <FEEDBACK> tags.
+       The feedback is only for you to see and will be removed from the final article.
+    `.replace(/\s+/g, " ");
   }
   const response = await model().invoke([
     new SystemMessage(
-      `You are a personal meal planning assistant. Provide short feedback on the meal plan to improve it. 
-      If it looks good, return [DONE].`.replace(/\s+/g, " ")
+      `You are a personal newspaper writing critique. Your sole purpose is to provide short feedback on a written 
+      article so the writer will know what to fix.       
+      Today's date is ${new Date().toLocaleDateString("en-GB")}
+      Your task is to provide a really short feedback on the article only if necessary.
+      if you think the article is good, please return [DONE].
+      you can provide feedback on the revised article or just
+      return [DONE] if you think the article is good.
+      Please return a string of your critique or [DONE].`.replace(/\s+/g, " ")
     ),
     new HumanMessage(
       `${feedbackInstructions}
-       This is the meal plan: ${state.agentState.mealPlan}`
+       This is the article: ${state.agentState.article}`
     ),
   ]);
   const content = response.content as string;
+  console.log("critique:", content);
   return {
     agentState: {
       ...state.agentState,
@@ -99,16 +126,19 @@ async function write(state: {
 }): Promise<{ agentState: AgentState }> {
   const response = await model().invoke([
     new SystemMessage(
-      `You are a meal planning assistant. Write a 7-day meal plan in markdown based on dietary preferences and the list of recipes.`.replace(
+      `You are a personal newspaper writer. Your sole purpose is to write a well-written article about a 
+      topic using a list of articles. Write 5 paragraphs in markdown.`.replace(
         /\s+/g,
         " "
       )
     ),
     new HumanMessage(
       `Today's date is ${new Date().toLocaleDateString("en-GB")}.
-      Dietary Preference: ${state.agentState.dietaryPreference}
-      List of recipes: ${state.agentState.searchResults}
-      Please create a meal plan based on these preferences and recipes.`.replace(
+      Your task is to write a critically acclaimed article for me about the provided query or 
+      topic based on the sources. 
+      Here is a list of articles: ${state.agentState.searchResults}
+      This is the topic: ${state.agentState.topic}
+      Please return a well-written article based on the provided information.`.replace(
         /\s+/g,
         " "
       )
@@ -118,7 +148,7 @@ async function write(state: {
   return {
     agentState: {
       ...state.agentState,
-      mealPlan: content,
+      article: content,
     },
   };
 }
@@ -128,20 +158,23 @@ async function revise(state: {
 }): Promise<{ agentState: AgentState }> {
   const response = await model().invoke([
     new SystemMessage(
-      `You are a meal planner. Revise the meal plan based on the provided critique.`.replace(/\s+/g, " ")
+      `You are a personal newspaper editor. Your sole purpose is to edit a well-written article about a 
+      topic based on given critique.`.replace(/\s+/g, " ")
     ),
     new HumanMessage(
-      `Your task is to revise the meal plan based on the critique given.
-      This is the meal plan: ${state.agentState.mealPlan}
+      `Your task is to edit the article based on the critique given.
+      This is the article: ${state.agentState.article}
       This is the critique: ${state.agentState.critique}
-      You may leave feedback about the critique encoded between <FEEDBACK> tags.`.replace(/\s+/g, " ")
+      Please return the edited article based on the critique given.
+      You may leave feedback about the critique encoded between <FEEDBACK> tags like this:
+      <FEEDBACK> here goes the feedback ...</FEEDBACK>`.replace(/\s+/g, " ")
     ),
   ]);
   const content = response.content as string;
   return {
     agentState: {
       ...state.agentState,
-      mealPlan: content,
+      article: content,
     },
   };
 }
@@ -150,17 +183,19 @@ const agentState = {
   agentState: {
     value: (x: AgentState, y: AgentState) => y,
     default: () => ({
-      dietaryPreference: "",
+      topic: "",
     }),
   },
 };
 
+// Define the function that determines whether to continue or not
 const shouldContinue = (state: { agentState: AgentState }) => {
-  return state.agentState.critique === undefined ? "end" : "continue";
+  const result = state.agentState.critique === undefined ? "end" : "continue";
+  return result;
 };
 
 const workflow = new StateGraph({
-  channels: agentState as any,
+  channels: agentState,
 });
 
 workflow.addNode("search", new RunnableLambda({ func: search }) as any);
@@ -173,11 +208,23 @@ workflow.addEdge("search", "curate");
 workflow.addEdge("curate", "write");
 workflow.addEdge("write", "critique");
 
+// We now add a conditional edge
 workflow.addConditionalEdges(
+  // First, we define the start node. We use `agent`.
+  // This means these are the edges taken after the `agent` node is called.
   "critique",
+  // Next, we pass in the function that will determine which node is called next.
   shouldContinue,
+  // Finally we pass in a mapping.
+  // The keys are strings, and the values are other nodes.
+  // END is a special node marking that the graph should finish.
+  // What will happen is we will call `should_continue`, and then the output of that
+  // will be matched against the keys in this mapping.
+  // Based on which one it matches, that node will then be called.
   {
+    // If `tools`, then we call the tool node.
     continue: "revise",
+    // Otherwise we finish.
     end: END,
   }
 );
@@ -187,14 +234,14 @@ workflow.addEdge("revise", "critique");
 workflow.setEntryPoint("search");
 const app = workflow.compile();
 
-export async function generateMealPlan(dietaryPreference: string) {
+export async function researchWithLangGraph(topic: string) {
   const inputs = {
     agentState: {
-      dietaryPreference,
+      topic,
     },
   };
   const result = await app.invoke(inputs);
   const regex = /<FEEDBACK>[\s\S]*?<\/FEEDBACK>/g;
-  const mealPlan = result.agentState.mealPlan.replace(regex, "");
-  return mealPlan;
+  const article = result.agentState.article.replace(regex, "");
+  return article;
 }
