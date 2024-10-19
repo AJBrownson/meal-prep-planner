@@ -1,6 +1,6 @@
 # Meal Prep
 
-This is an AI powered meal planning tool that prepares meal plans based on user preferences and nutritional requirements.
+This is an AI powered meal planning app that prepares meal plans based on user preferences and nutritional requirements.
 
 ## Table of Contents
 
@@ -20,11 +20,11 @@ This is an AI powered meal planning tool that prepares meal plans based on user 
 
 ## Demo
 
-You can view a live demo of Meal Prep Planner [here](https://mini-faq-bot.vercel.app/)
+You can view a live demo of Meal Prep Planner [here](https://meal-prep-planner.vercel.app/)
 
 ## Screenshots
 
-![App Screenshot](https://github.com/user-attachments/assets/412181bf-ae0c-4782-8511-eb974477742b)
+![App Screenshot]()
 
 ## Technologies
 
@@ -41,9 +41,9 @@ To get started with the project, run the following commands in your terminal:
 1. Clone the repository
 ```bash
 
-git clone https://github.com/AJBrownson/mini-faq-bot.git
+git clone https://github.com/AJBrownson/meal-prep-planner.git
 
-cd mini-faq-bot
+cd meal-prep-planner
 
 ```
 
@@ -61,12 +61,17 @@ GROQ_API_KEY=your_groq_api_key
 
 GROQ_MODEL=llama3-8b-8192 or model-of-your-choice
 
+TAVILY_API_KEY=your-tavily-api-key
+
 ```
 > You can get your GROQ API key by signing up on [groq.dev](https://groq.com)
+> You can get your TAVILY API KEY by signing up on [tavily.com](https://tavily.com)
 
 3. Start the development server
 ```bash
+
 npm run dev
+
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser to view the app
