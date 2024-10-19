@@ -7,7 +7,6 @@ import { useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,

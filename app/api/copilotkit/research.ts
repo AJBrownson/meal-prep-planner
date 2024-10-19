@@ -3,6 +3,8 @@
  *
  * https://github.com/assafelovic/gpt-newspaper
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatGroq } from "@langchain/groq";
 import { StateGraph, END } from "@langchain/langgraph";
