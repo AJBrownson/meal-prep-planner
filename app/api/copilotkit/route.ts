@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // Import the researchWithLangGraph function from the research module
 import { researchWithLangGraph } from "./research";
 // Import the Action type from the @cop./researcht/shared package
@@ -24,6 +26,7 @@ const groqAdapter = new GroqAdapter({
 
 // Initialize the CopilotRuntime
 const runtime = new CopilotRuntime();
+
 
 // Define the researchAction object with type Action<any>
 const researchAction: Action<any> = {
