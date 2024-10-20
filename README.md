@@ -24,7 +24,7 @@ You can view a live demo of Meal Prep Planner [here](https://meal-prep-planner.v
 
 ## Screenshots
 
-![App Screenshot]()
+![App Screenshot](https://github.com/user-attachments/assets/1e5e779b-73ef-4d71-ac8d-ab66fa1af483)
 
 ## Technologies
 
